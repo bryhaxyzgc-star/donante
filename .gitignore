@@ -1,0 +1,18 @@
+node_modules/
+dist/
+# binarios copiados/bajados por postinstall (se regeneran con npm install)
+public/mediapipe/
+public/rapier/
+public/decoders/
+public/fonts/
+# fuentes de Blender pesadas
+blender/source/*.blend1
+# anatomía placeholder precalculada (npm run placeholders)
+public/models/placeholder/
+# datos de BodyParts3D y archivos intermedios del pipeline de Blender (npm run blender)
+blender/source/bodyparts3d/
+blender/source/work/
+
+# varios
+.Rhistory
+blender/scripts/__pycache__/

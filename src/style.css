@@ -1,0 +1,346 @@
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2');
+  font-weight: 500;
+  font-display: block;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #05070a;
+  color: #c9d6e0;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  cursor: none;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  display: block;
+}
+
+.loading {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: #05070a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: opacity 1s ease;
+}
+.loading.done {
+  opacity: 0;
+  pointer-events: none;
+}
+.loading-label {
+  font-size: 15px;
+  letter-spacing: 0.35em;
+  color: #9fb3c6;
+}
+.loading-detail {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: #4b5b69;
+  min-height: 1em;
+}
+
+.audio-hint {
+  position: fixed;
+  right: 18px;
+  bottom: 14px;
+  z-index: 20;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: #3c4955;
+  pointer-events: none;
+}
+
+/* Textos clínicos (§9): impresos letra a letra, sin espejar. */
+.labels {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+}
+.label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: pre;
+  color: #c9d6e0;
+  letter-spacing: 0.14em;
+  /* Contorno oscuro: el texto se lee aunque pase sobre el hueso o el halo del bloom. */
+  text-shadow: 0 0 2px #05070a, 0 0 5px rgba(5, 7, 10, 0.95), 0 0 11px rgba(5, 7, 10, 0.85),
+    0 0 6px rgba(143, 166, 184, 0.25);
+  will-change: transform, opacity;
+}
+/* Tamaños relativos al alto de la imagen y escalables (G → Textos): se leen desde el fondo de la sala. */
+.label-small {
+  font-size: calc(1.15vh * var(--label-scale, 1.8));
+  letter-spacing: 0.08em;
+  color: #9fb3c6;
+}
+.label-normal {
+  font-size: calc(1.4vh * var(--label-scale, 1.8));
+}
+.label-large {
+  font-size: calc(1.85vh * var(--label-scale, 1.8));
+  font-weight: 500;
+}
+/* Anillo de gesto: dónde poner la mano; se llena mientras se la mantiene ahí. */
+.hint-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 12vh;
+  height: 12vh;
+  border-radius: 50%;
+  border: 0.35vh solid rgba(232, 238, 242, 0.5);
+  box-shadow: 0 0 1.6vh rgba(232, 238, 242, 0.2);
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+}
+.hint-ring-fill {
+  position: absolute;
+  inset: -0.35vh;
+  border-radius: 50%;
+  background: conic-gradient(#eef3f6 calc(var(--p, 0) * 1turn), transparent 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 0.9vh), #000 calc(100% - 0.85vh));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 0.9vh), #000 calc(100% - 0.85vh));
+}
+/* Guía para el público: lo más grande de la placa, centrada, en una o dos líneas. */
+.label-guide {
+  font-size: calc(2.3vh * var(--label-scale, 1.8));
+  font-weight: 500;
+  line-height: 1.22;
+  letter-spacing: 0.1em;
+  text-align: center;
+  color: #eef3f6;
+}
+
+/* Marco de placa radiográfica (sin espejar): borde de colimación, esquinas redondeadas, muescas de la
+   película, marcador de plomo y datos impresos. */
+.film {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  color: #e8eef2;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+.film-edge {
+  position: absolute;
+  inset: 0;
+  border: solid var(--film-color, #93a2ad);
+  border-width: var(--film-border, 2.6vh);
+  border-radius: var(--film-radius, 2.2vh);
+  /* Penumbra del colimador: el borde claro se funde hacia la imagen. */
+  box-shadow: inset 0 0 var(--film-soft, 2.4vh) calc(var(--film-soft, 2.4vh) * 0.35) var(--film-glow, rgba(147, 162, 173, 0.55));
+  opacity: var(--film-opacity, 0.85);
+}
+.film-notch {
+  position: absolute;
+  top: calc(var(--film-border, 2.6vh) * 0.15);
+  width: 1.1vh;
+  height: 1.6vh;
+  background: #05070a;
+  border-radius: 0 0 0.6vh 0.6vh;
+  opacity: 0.9;
+}
+.film-marker {
+  position: absolute;
+  top: calc(var(--film-border, 2.6vh) + 2.2vh);
+  right: calc(var(--film-border, 2.6vh) + 2.6vh);
+  padding: 0.1vh 0.9vh;
+  font-size: calc(2.4vh * var(--label-scale, 1.8));
+  font-weight: 500;
+  line-height: 1.15;
+  border: 0.35vh solid #e8eef2;
+  border-radius: 0.5vh;
+  color: #f2f6f9;
+  text-shadow: 0 0 1.2vh rgba(232, 238, 242, 0.35);
+  opacity: 0.92;
+}
+.film-info {
+  position: absolute;
+  bottom: calc(var(--film-border, 2.6vh) + 1.6vh);
+  right: calc(var(--film-border, 2.6vh) + 2.6vh);
+  text-align: right;
+  font-size: 1.45vh;
+  line-height: 1.5;
+  letter-spacing: 0.12em;
+  color: #c4d1db;
+  white-space: pre;
+  opacity: 0.6;
+}
+
+/* Fluoroscopia (sin espejar): datos del equipo en las esquinas, fuera del campo redondo, y regla en cm. */
+.fluoro {
+  --film-border: 0vh;
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  color: #c4d1db;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+}
+.fluoro-info {
+  position: absolute;
+  font-size: calc(0.72vh * var(--label-scale, 1.8));
+  line-height: 1.5;
+  letter-spacing: 0.1em;
+  white-space: pre;
+  opacity: 0.72;
+  text-shadow: 0 0 2px #05070a, 0 0 6px rgba(5, 7, 10, 0.9);
+}
+/* Abajo a la izquierda, encima del contador: arriba está la guía para el público, que es ancha. */
+.fluoro-bl {
+  bottom: calc(4.2vh + 1.6vh * var(--label-scale, 1.8));
+  left: 2.6vh;
+}
+.fluoro-br {
+  bottom: 2.2vh;
+  right: 2.6vh;
+  text-align: right;
+}
+.fluoro-marker {
+  font-size: calc(1.6vh * var(--label-scale, 1.8));
+  opacity: 0.8;
+}
+.fluoro-ruler {
+  position: absolute;
+  right: 3.2vh;
+  top: 50%;
+  width: 2.4vh;
+  transform: translateY(-50%);
+  opacity: 0.55;
+}
+.fluoro-ruler-spine {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #c4d1db;
+}
+.fluoro-tick {
+  position: absolute;
+  right: 0;
+  width: 0.6vh;
+  height: 1px;
+  background: #c4d1db;
+}
+.fluoro-tick-mid {
+  width: 1.1vh;
+}
+.fluoro-tick-major {
+  width: 1.8vh;
+}
+.fluoro-tick span {
+  position: absolute;
+  right: 2.4vh;
+  top: 0;
+  transform: translateY(-50%);
+  font-size: calc(0.6vh * var(--label-scale, 1.8));
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.debug-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+}
+.debug-hud {
+  position: fixed;
+  left: 12px;
+  top: 10px;
+  z-index: 11;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #b9cddd;
+  background: rgba(5, 7, 10, 0.72);
+  border: 1px solid #1b2530;
+  pointer-events: none;
+  white-space: pre;
+}
+.debug-stats {
+  position: fixed !important;
+  right: 12px;
+  top: 10px;
+  left: auto !important;
+  z-index: 11;
+  opacity: 0.85;
+}
+
+.calib {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+.calib-h,
+.calib-v {
+  position: absolute;
+  background: rgba(159, 179, 198, 0.35);
+}
+.calib-h {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+}
+.calib-v {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+}
+.calib-info {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+  white-space: pre;
+  color: #c9d6e0;
+  background: rgba(5, 7, 10, 0.75);
+  padding: 6px 12px;
+}
+
+.donante-gui {
+  --font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  --background-color: #0b1016;
+  --widget-color: #18222d;
+  --focus-color: #24323f;
+  --hover-color: #1f2b37;
+  --number-color: #9fd0ff;
+  --string-color: #c9d6e0;
+  z-index: 30 !important;
+  cursor: default;
+}
+body:has(.donante-gui:hover) {
+  cursor: default;
+}

@@ -1,0 +1,35 @@
+{
+  "name": "donante",
+  "private": true,
+  "version": "0.1.0",
+  "description": "DONANTE N.º ____ — instalación interactiva sobre el xenotrasplante",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "vendor": "node scripts/copy-vendor.mjs",
+    "assets": "node scripts/fetch-assets.mjs",
+    "postinstall": "node scripts/copy-vendor.mjs && node scripts/fetch-assets.mjs && node scripts/build-placeholders.ts",
+    "placeholders": "node scripts/build-placeholders.ts",
+    "blender": "node scripts/blender-pipeline.mjs",
+    "pig": "node --no-warnings scripts/build-pig.ts"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "@mediapipe/tasks-vision": "^1.1.1",
+    "@tweenjs/tween.js": "^25.0.0",
+    "lil-gui": "^0.21.0",
+    "n8ao": "^2.0.1",
+    "postprocessing": "^6.39.5",
+    "stats.js": "^0.17.0",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/stats.js": "^0.17.4",
+    "@types/three": "^0.186.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}

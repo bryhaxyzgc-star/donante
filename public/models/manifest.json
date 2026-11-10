@@ -1,0 +1,19 @@
+{
+  "human": {
+    "type": "glb",
+    "path": "models/human.glb"
+  },
+  "pig": {
+    "type": "glb",
+    "path": "models/pig.glb"
+  },
+  "heart": {
+    "type": "glb",
+    "path": "models/heart.glb"
+  },
+  "placeholder": {
+    "type": "placeholder",
+    "path": "models/placeholder/human"
+  },
+  "source": "BodyParts3D, \u00a9 The Database Center for Life Science licensed under CC Attribution 4.0 International"
+}
