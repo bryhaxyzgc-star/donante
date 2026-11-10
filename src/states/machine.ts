@@ -26,6 +26,7 @@ export interface State {
 
 const tmp = new Vector3();
 const tmp2 = new Vector3();
+const wallTmp = { x: 0, y: 0 };
 /** Fase del ciclo en que empieza la contracción ventricular (el "lub", ver body.ts → cardiac). */
 const SYSTOLE = 0.12;
 
@@ -301,9 +302,48 @@ export class Show {
     return this.screenSide(b);
   }
 
+  /** Posición en la pared (x, y en -1..1, como la ve el público) de la cadera de una persona. */
+  private wallOf(p: Person, out: { x: number; y: number }): { x: number; y: number } {
+    const P = this.stage.projection;
+    const [x, y] = P.videoToScreen(p.hipX, p.hipY);
+    out.x = (x / P.canvasW) * 2 - 1;
+    out.y = 1 - (y / P.canvasH) * 2;
+    return out;
+  }
+
+  /** Durante el ciclo, el receptor no puede quedarse congelado. Cuando se acerca al cerdo para tomar el
+   *  corazón, los dos cuerpos quedan juntos y MediaPipe suele perderlo o cambiarle la identidad: al volver
+   *  aparece como una persona nueva, sin cuerpo, y el del receptor quedaba atado a la identidad vieja con la
+   *  última pose. Si su persona ya no está activa, su cuerpo pasa a la persona sin cuerpo más cercana. */
+  private rebindReceptor(): void {
+    const r = this.receptor;
+    if (!r || r.virtual) return;
+    const cur = this.person(r.personId);
+    if (cur && cur.state === 'active') return;
+    const candidates = this.activePeople().filter((p) => p.state === 'active' && !this.bodyOf(p));
+    if (!candidates.length) return;
+    // La más cercana a donde quedó el receptor (cadera en la pared).
+    r.chestWorld(tmp);
+    tmp.project(this.stage.camera);
+    const rx = config.mirror ? -tmp.x : tmp.x;
+    let best = candidates[0];
+    let bestD = Infinity;
+    for (const p of candidates) {
+      const w = this.wallOf(p, wallTmp);
+      const d = Math.abs(w.x - rx);
+      if (d < bestD) {
+        bestD = d;
+        best = p;
+      }
+    }
+    console.info(`[roles] receptor: persona ${r.personId ?? '—'} perdida, pasa a la persona ${best.id}`);
+    r.personId = best.id;
+  }
+
   updateBodies(now: number): void {
     const dt = this.clocks.dtGame;
     const dtr = this.clocks.dtReal;
+    if (this.donor && this.receptor) this.rebindReceptor();
     for (const b of this.bodies) {
       const p = this.person(b.personId);
       if (b.personId !== null && !p && !b.hold) b.release();

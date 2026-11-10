@@ -84,10 +84,30 @@ export class PeopleTracker {
       usedD.add(pr.d);
       this.update(this.people[pr.p], frame, dets[pr.d], t, now);
     }
-    centers.forEach((_, di) => {
+    centers.forEach(([x, y], di) => {
       if (usedD.has(di)) return;
       const active = this.people.filter((p) => p.state !== 'leaving').length;
-      if (active >= config.tracking.maxPeople) return;
+      if (active >= config.tracking.maxPeople) {
+        // Ya hay dos personas registradas: esta detección es una de ellas que saltó más de matchDist (pose a
+        // pocos Hz, o dos cuerpos juntos que MediaPipe perdió un instante). Recupera la identidad de la
+        // persona que no se vio en este frame, la más cercana: así el rol no se pierde (el receptor no queda
+        // congelado con la última pose). Antes se descartaba.
+        let best = -1;
+        let bestD = Infinity;
+        this.people.forEach((person, pi) => {
+          if (person.state === 'leaving' || usedP.has(pi)) return;
+          const d = Math.hypot(person.trackX - x, person.trackY - y);
+          if (d < bestD) {
+            bestD = d;
+            best = pi;
+          }
+        });
+        if (best >= 0) {
+          usedP.add(best);
+          this.update(this.people[best], frame, dets[di], t, now);
+        }
+        return;
+      }
       const person = this.create(now);
       this.people.push(person);
       this.update(person, frame, dets[di], t, now);

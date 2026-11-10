@@ -54,7 +54,7 @@ export const config = {
     /** Segundos que se mantiene la última pose sin detección (§7). */
     lostGrace: 1.5,
     /** Distancia máxima (en fracción de imagen) para asociar personas entre frames. */
-    matchDist: 0.22,
+    matchDist: 0.3,
     fadeIn: 0.6,
     fadeOut: 0.8,
   },
