@@ -8,6 +8,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { fetchWithProgress } from '../input/pose.ts';
 import { decodeAssets, type AssetFile, type DecodedEntry } from './assetFormat.ts';
 import { BONE_NAMES, PROCEDURAL_META, type BoneName, type RigMeta, type V3 } from './armature.ts';
+import { asset } from '../base.ts';
 
 export interface BoneGeo {
   slot: string;
@@ -85,11 +86,11 @@ function buildPlaceholder(entries: DecodedEntry[], source: string): BodyAssets {
 }
 
 async function loadPlaceholder(path: string, onProgress: (f: number) => void): Promise<BodyAssets> {
-  const res = await fetch(`/${path}.json`);
+  const res = await fetch(asset(`${path}.json`));
   const type = res.headers.get('content-type') ?? '';
   if (!res.ok || !type.includes('json')) throw new Error('placeholder no encontrado');
   const json = (await res.json()) as AssetFile;
-  const bin = await fetchWithProgress(`/${path}.bin`, onProgress);
+  const bin = await fetchWithProgress(asset(`${path}.bin`), onProgress);
   return buildPlaceholder(decodeAssets(json, bin), 'placeholder');
 }
 
@@ -114,7 +115,7 @@ function generateInWorker(onProgress: Progress): Promise<BodyAssets> {
 let loader: GLTFLoader | null = null;
 function gltfLoader(): GLTFLoader {
   if (!loader) {
-    const draco = new DRACOLoader().setDecoderPath('/decoders/draco/');
+    const draco = new DRACOLoader().setDecoderPath(asset('decoders/draco/'));
     draco.preload();
     loader = new GLTFLoader().setDRACOLoader(draco);
     // KTX2Loader se agrega cuando los GLB traigan texturas (hoy los materiales son de la app).
@@ -246,7 +247,7 @@ interface Manifest {
 }
 
 async function loadFromGLB(m: Manifest, onProgress: Progress): Promise<BodyAssets> {
-  const human = await loadGLB(`/${m.human!.path}`, (f) => onProgress(f * 0.6, 'anatomía · humano'));
+  const human = await loadGLB(asset(m.human!.path), (f) => onProgress(f * 0.6, 'anatomía · humano'));
   const out = emptyAssets(`GLB ${m.human!.path}`);
   out.rest = restFrom(human);
   if (!out.rest) throw new Error('human.glb sin la armadura completa (nombres Mixamo)');
@@ -255,7 +256,7 @@ async function loadFromGLB(m: Manifest, onProgress: Progress): Promise<BodyAsset
   if (!out.skin.getAttribute('position') || !out.bones.length) throw new Error('human.glb incompleto (piel o huesos)');
   if (m.pig?.type === 'glb') {
     try {
-      const pig = await loadGLB(`/${m.pig.path}`, (f) => onProgress(0.6 + f * 0.25, 'anatomía · cerdo'));
+      const pig = await loadGLB(asset(m.pig.path), (f) => onProgress(0.6 + f * 0.25, 'anatomía · cerdo'));
       collect(pig, out, 'pig');
     } catch (err) {
       console.warn('[assets] pig.glb no cargó; la transformación usará placeholders', err);
@@ -263,7 +264,7 @@ async function loadFromGLB(m: Manifest, onProgress: Progress): Promise<BodyAsset
   }
   if (m.heart?.type === 'glb') {
     try {
-      out.heartRig = await loadGLB(`/${m.heart.path}`, (f) => onProgress(0.85 + f * 0.15, 'anatomía · corazón'));
+      out.heartRig = await loadGLB(asset(m.heart.path), (f) => onProgress(0.85 + f * 0.15, 'anatomía · corazón'));
     } catch (err) {
       console.warn('[assets] heart.glb no cargó', err);
     }
@@ -275,7 +276,7 @@ async function loadFromGLB(m: Manifest, onProgress: Progress): Promise<BodyAsset
 export async function loadBodyAssets(onProgress: Progress): Promise<BodyAssets> {
   let manifest: Manifest = {};
   try {
-    const r = await fetch('/models/manifest.json');
+    const r = await fetch(asset('models/manifest.json'));
     if (r.ok && (r.headers.get('content-type') ?? '').includes('json')) manifest = await r.json();
   } catch {
     /* sin manifiesto: placeholders */

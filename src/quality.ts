@@ -65,12 +65,13 @@ export function gpuName(): string {
   }
 }
 
-/** Heurística: Intel / Radeon integrada / SwiftShader → solo LOW (§2). */
+/** Heurística: Intel / Radeon integrada / SwiftShader / GPU de tablet → solo LOW (§2). */
 export function isIntegratedGPU(name: string): boolean {
   const n = name.toLowerCase();
   if (n.includes('nvidia') || n.includes('geforce') || n.includes('rtx')) return false;
   if (/radeon\s*(rx|pro)/.test(n)) return false;
-  return /intel|uhd|iris|swiftshader|llvmpipe|radeon\(tm\) graphics|radeon graphics|apple m/.test(n);
+  // También las GPU de tablets y celulares (Adreno, Mali, PowerVR, Apple): siempre LOW.
+  return /intel|uhd|iris|swiftshader|llvmpipe|radeon\(tm\) graphics|radeon graphics|apple m|apple gpu|adreno|mali|powervr|xclipse|immortalis/.test(n);
 }
 
 export function initialPreset(gpu: string): PresetName {

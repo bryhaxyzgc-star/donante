@@ -8,6 +8,7 @@
 //  - Foley opcional: si existe public/audio/manifest.json ({ "bone_crack": ["bone_crack_01.wav", …] })
 //    se cargan esos archivos (locales, offline §1.9) y los cues los prefieren a la síntesis.
 import { config } from '../config.ts';
+import { asset } from '../base.ts';
 
 export type Bus = 'amb' | 'ui' | 'fx' | 'heart';
 const BUSES: Bus[] = ['amb', 'ui', 'fx', 'heart'];
@@ -111,7 +112,7 @@ export class AudioEngine {
     if (!ctx) return;
     let manifest: Record<string, string[]> = {};
     try {
-      const r = await fetch('/audio/manifest.json');
+      const r = await fetch(asset('audio/manifest.json'));
       if (!r.ok || !(r.headers.get('content-type') ?? '').includes('json')) return;
       manifest = await r.json();
     } catch {
@@ -121,7 +122,7 @@ export class AudioEngine {
       const list: AudioBuffer[] = [];
       for (const f of files ?? []) {
         try {
-          const r = await fetch(`/audio/${f}`);
+          const r = await fetch(asset(`audio/${f}`));
           if (r.ok) list.push(await ctx.decodeAudioData(await r.arrayBuffer()));
         } catch (err) {
           console.warn(`[audio] no se pudo cargar ${f}`, err);

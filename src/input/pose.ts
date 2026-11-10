@@ -2,12 +2,13 @@
 // recibe landmarks + máscara. Si el worker está ocupado, el frame se descarta.
 import { config } from '../config.ts';
 import type { FromWorker, PoseFrame, ToWorker } from './poseTypes.ts';
+import { asset } from '../base.ts';
 
 export type ModelName = 'full' | 'heavy';
 
 const MODEL_URL: Record<ModelName, string> = {
-  full: '/mediapipe/models/pose_landmarker_full.task',
-  heavy: '/mediapipe/models/pose_landmarker_heavy.task',
+  full: asset('mediapipe/models/pose_landmarker_full.task'),
+  heavy: asset('mediapipe/models/pose_landmarker_heavy.task'),
 };
 
 /** Descarga (local) un archivo informando el progreso para la pantalla CARGANDO. */
@@ -63,7 +64,7 @@ export class PoseEngine {
         w.onerror = (e) => reject(new Error(e.message || 'error al cargar el worker de pose'));
         const msg: ToWorker = {
           type: 'init',
-          wasmBase: new URL('/mediapipe/wasm', location.origin).href,
+          wasmBase: new URL(asset('mediapipe/wasm'), location.origin).href,
           model: buf,
           modelName: model,
           numPoses: config.tracking.maxPeople,

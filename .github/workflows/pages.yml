@@ -1,0 +1,49 @@
+# Publica DONANTE en GitHub Pages (https://<usuario>.github.io/donante/) en cada push a main.
+# Instala las dependencias (postinstall baja los modelos de MediaPipe y la tipografía, que no van en el repo),
+# arma la obra con la base /donante/ y sube la carpeta dist.
+# Ojo: en Pages la obra corre en el aparato que la abre (tablet, celular, otra PC), con su propia cámara.
+name: Publicar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Instalar (incluye modelos de MediaPipe y anatomía de respaldo)
+        run: npm ci
+      - name: Armar la obra para /donante/
+        run: npm run build
+        env:
+          VITE_BASE: /donante/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
