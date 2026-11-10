@@ -12,7 +12,7 @@ const RANGES: Record<string, Range> = {
   'webcam.fps': [15, 60, 1],
   'camera.vfovDeg': [20, 90, 0.1],
   'pose.inputWidth': [256, 1280, 32],
-  'pose.maskEvery': [1, 6, 1],
+  'pose.maskEvery': [1, 6, 1], 'pose.shadowTarget': [0.1, 0.8], 'pose.gammaMin': [0.2, 1], 'pose.backgroundLuma': [0.3, 0.95], 'webcam.exposureBoost': [0, 1],
   'filter.minCutoff2d': [0.05, 5], 'filter.beta2d': [0, 10], 'filter.minCutoff3d': [0.05, 5], 'filter.beta3d': [0, 10],
   'filter.dCutoff': [0.1, 5], 'filter.visibilityRate': [0.5, 20],
   'tracking.lostGrace': [0, 3], 'tracking.matchDist': [0.05, 0.6], 'tracking.fadeIn': [0.05, 3], 'tracking.fadeOut': [0.05, 3],

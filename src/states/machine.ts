@@ -183,6 +183,8 @@ export class Show {
     this.receptor.hold = true;
     this.donorNumber = this.counter.next;
     this.heartDelivered = false;
+    // Desde acá las dos personas quedan amarradas hasta el fin del ciclo.
+    this.people.lock([this.donor.personId, this.receptor.personId]);
     // Textos hacia afuera: cada uno del lado contrario al otro cuerpo.
     this.receptor.chestWorld(tmp2);
     this.donorSide = this.pan(this.donor) >= this.panOf(tmp2) ? 1 : -1;
@@ -203,6 +205,7 @@ export class Show {
     }
     this.donor = null;
     this.receptor = null;
+    this.people.unlock();
     this.solo = false;
     this.heartDelivered = false;
     this.heartHomeSet = false;
@@ -338,6 +341,7 @@ export class Show {
     }
     console.info(`[roles] receptor: persona ${r.personId ?? '—'} perdida, pasa a la persona ${best.id}`);
     r.personId = best.id;
+    this.people.lock([this.donor?.personId, r.personId]);
   }
 
   updateBodies(now: number): void {

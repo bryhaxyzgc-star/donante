@@ -191,6 +191,8 @@ Cada persona detectada tiene un `BodyRig` con 4 capas sobre la misma armadura:
   - **Límites anatómicos** por articulación (clamp de ángulos) para que codos y rodillas no se doblen al revés.
   - Slerp de suavizado adicional (factor en config).
 - **Identidad:** asociar personas entre frames por el centro de caderas (greedy por distancia). El rol queda pegado a la identidad, no al lado de la pantalla.
+- **Fondo blanco (la sala):** solo hay dos personas sobre un fondo blanco liso, así que la detección es muy sensible (`pose.minDetection`/`minPresence`/`minTracking` = 0,2). Con fondo blanco la webcam se cierra y las personas quedan a contraluz, y el detector de MediaPipe se ancla en la cara. Por eso hay dos correcciones: se pide más exposición a la webcam (`webcam.exposureBoost`, si el driver lo permite) y se **levantan las sombras** de la imagen que ve MediaPipe con una curva gamma calculada solo con lo que no es fondo (`pose.autoGain`, `shadowTarget`, `gammaMin`, `backgroundLuma`). El público nunca ve esa imagen.
+- **Amarre durante el ciclo:** desde la asignación de roles hasta la vuelta a la espera, las dos personas quedan amarradas (`PeopleTracker.lock`). No se borran ni se crean personas nuevas: si MediaPipe pierde a una (pasa cuando el receptor pone la mano sobre el pecho del cerdo y los cuerpos se juntan), su cuerpo espera con la última pose, y la próxima detección a menos de `tracking.recoverDist` vuelve a ser ella. Un desconocido lejos no se lleva la identidad.
 - **Pérdida de tracking:** mantener la última pose `tracking.lostGrace` (1,5 s). Un corte más breve no borra el tiempo estable acumulado: la obra arranca sola aunque la detección parpadee.
 - **Más de 2 personas:** quedarse con las 2 de mayor área de máscara.
 

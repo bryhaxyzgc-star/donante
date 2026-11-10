@@ -49,6 +49,25 @@ export class PeopleTracker {
   private nextId = 1;
   private scratch2d = new Float32Array(SIZE);
   private scratch3d = new Float32Array(SIZE);
+  /** Personas AMARRADAS al ciclo (donante y receptor, desde que se reparten los roles). Mientras dura el
+   *  ciclo nunca se borran ni se crean personas nuevas: si MediaPipe pierde a una, queda 'lost' con su
+   *  última pose y la próxima detección cercana vuelve a ser ella. Así nadie "deja de ser reconocido" a
+   *  mitad de la extracción. */
+  private locked = new Set<number>();
+
+  /** Amarra estas identidades hasta `unlock()` (fin del ciclo). */
+  lock(ids: (number | null | undefined)[]): void {
+    this.locked.clear();
+    for (const id of ids) if (id !== null && id !== undefined) this.locked.add(id);
+  }
+
+  unlock(): void {
+    this.locked.clear();
+  }
+
+  isLocked(id: number): boolean {
+    return this.locked.has(id);
+  }
 
   /** Incorpora un frame de pose. `now` en segundos del reloj real. */
   ingest(frame: PoseFrame, now: number): void {
@@ -86,6 +105,25 @@ export class PeopleTracker {
     }
     centers.forEach(([x, y], di) => {
       if (usedD.has(di)) return;
+      if (this.locked.size) {
+        // Ciclo en curso: la detección es una de las dos personas amarradas (la no vista más cercana), aunque
+        // haya saltado. Un desconocido lejos (público que pasa por detrás) no se lleva la identidad.
+        let best = -1;
+        let bestD = config.tracking.recoverDist;
+        this.people.forEach((person, pi) => {
+          if (!this.locked.has(person.id) || usedP.has(pi)) return;
+          const d = Math.hypot(person.trackX - x, person.trackY - y);
+          if (d < bestD) {
+            bestD = d;
+            best = pi;
+          }
+        });
+        if (best >= 0) {
+          usedP.add(best);
+          this.update(this.people[best], frame, dets[di], t, now);
+        }
+        return;
+      }
       const active = this.people.filter((p) => p.state !== 'leaving').length;
       if (active >= config.tracking.maxPeople) {
         // Ya hay dos personas registradas: esta detección es una de ellas que saltó más de matchDist (pose a
@@ -189,7 +227,8 @@ export class PeopleTracker {
     const tr = config.tracking;
     for (const p of this.people) {
       const since = now - p.lastSeen;
-      if (p.state !== 'leaving' && since > tr.lostGrace) p.state = 'leaving';
+      // Las amarradas nunca se van durante el ciclo: esperan 'lost' con su última pose.
+      if (p.state !== 'leaving' && since > tr.lostGrace && !this.locked.has(p.id)) p.state = 'leaving';
       else if (p.state === 'active' && since > 0.25) p.state = 'lost';
       // Solo quien se fue de verdad (más de lostGrace sin detección) vuelve a empezar de cero.
       if (p.state === 'leaving') p.stableTime = 0;
@@ -200,6 +239,7 @@ export class PeopleTracker {
   }
 
   clear(): void {
+    this.locked.clear();
     this.people = [];
   }
 }

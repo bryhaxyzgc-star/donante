@@ -14,6 +14,10 @@ export const config = {
     fps: 30,
     /** Fragmento del nombre del dispositivo preferido (p. ej. "C920"). Vacío = el primero. */
     preferLabel: '',
+    /** Exposición extra pedida a la webcam (0 = la suya, 1 = el máximo que permita). Con fondo blanco la
+     *  cámara se cierra para no quemar el blanco y las personas quedan oscuras, a contraluz. Solo si la
+     *  webcam lo permite (Chrome + driver); si no, se ignora. */
+    exposureBoost: 0.5,
     /** 'camara' o 'simulador' (cuerpos sintéticos para probar sin webcam). */
     source: 'camara' as 'camara' | 'simulador',
   },
@@ -28,15 +32,25 @@ export const config = {
   pose: {
     /** Ancho del frame que se manda a MediaPipe (§7). */
     inputWidth: 640,
-    /** Umbrales de MediaPipe: algo bajos para no perder a la segunda persona cuando están cerca. */
-    minDetection: 0.4,
-    minPresence: 0.4,
-    minTracking: 0.4,
+    /** Umbrales de MediaPipe, MUY sensibles: en la sala el fondo es blanco y liso y solo hay dos personas,
+     *  así que no hay nada con qué confundirse; lo que cuesta es encontrarlas (caras a contraluz). */
+    minDetection: 0.2,
+    /** Presencia y rastreo más bajos que la detección: una vez encontrada, MediaPipe no suelta a la persona
+     *  aunque los dos cuerpos se junten (con la mano sobre el pecho del otro). */
+    minPresence: 0.2,
+    minTracking: 0.2,
     /** Máscara de segmentación cada N frames de pose (1 = todos). */
     maskEvery: 2,
     /** Dónde corre MediaPipe. 'GPU' es lo normal; con GPU integrada, si el receptor se congela (pose a
      *  pocos Hz en el HUD de la tecla D), probar 'CPU': deja de competir con el render. */
     delegate: 'GPU' as 'GPU' | 'CPU',
+    /** Levantar sombras en la imagen que ve MediaPipe (no el público). Con fondo blanco las personas quedan
+     *  a contraluz: se aclara solo lo que no es fondo (más oscuro que `backgroundLuma`) hasta `shadowTarget`
+     *  de brillo medio, con una curva gamma que nunca baja de `gammaMin` (más bajo = aclara más). */
+    autoGain: true,
+    shadowTarget: 0.45,
+    gammaMin: 0.35,
+    backgroundLuma: 0.72,
   },
 
   filter: {
@@ -55,6 +69,9 @@ export const config = {
     lostGrace: 1.5,
     /** Distancia máxima (en fracción de imagen) para asociar personas entre frames. */
     matchDist: 0.3,
+    /** Ciclo en curso: hasta qué distancia (fracción de imagen) una detección suelta se reconoce como una de
+     *  las dos personas amarradas aunque haya saltado. Más lejos se ignora (público que pasa por detrás). */
+    recoverDist: 0.5,
     fadeIn: 0.6,
     fadeOut: 0.8,
   },
@@ -64,7 +81,8 @@ export const config = {
     smoothing: 16,
     rootSmoothing: 14,
     depthSmoothing: 5,
-    minVisibility: 0.55,
+    /** Bajo: con la sensibilidad alta, un brazo poco visible igual se mueve. */
+    minVisibility: 0.4,
     /** Ajuste de inclinación de la cabeza (ojos-orejas) en grados. */
     headPitchOffsetDeg: 10,
     neckShare: 0.4,

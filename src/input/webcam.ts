@@ -54,10 +54,29 @@ export class Webcam {
       },
     });
     this.deviceLabel = this.stream.getVideoTracks()[0]?.label ?? '';
+    await this.boostExposure();
     this.video.srcObject = this.stream;
     await this.video.play();
     await this.listDevices();
     this.loop();
+  }
+
+  /** Fondo blanco: pide más exposición a la webcam para que las personas no queden a contraluz. Usa la
+   *  compensación de exposición si el driver la ofrece (si no, no hace nada). */
+  private async boostExposure(): Promise<void> {
+    const track = this.stream?.getVideoTracks()[0];
+    const k = config.webcam.exposureBoost;
+    if (!track || k <= 0 || typeof track.getCapabilities !== 'function') return;
+    try {
+      const caps = track.getCapabilities() as Record<string, { min?: number; max?: number } | undefined>;
+      const ec = caps.exposureCompensation;
+      if (ec && ec.max !== undefined && ec.max > 0) {
+        await track.applyConstraints({ advanced: [{ exposureCompensation: ec.max * k } as MediaTrackConstraintSet] });
+        console.info(`[webcam] compensación de exposición +${(ec.max * k).toFixed(2)} (máx. ${ec.max})`);
+      } else console.info('[webcam] la cámara no ofrece compensación de exposición');
+    } catch (err) {
+      console.warn('[webcam] no se pudo ajustar la exposición', err);
+    }
   }
 
   stop(): void {

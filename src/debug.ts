@@ -88,7 +88,7 @@ export class Debug {
       `FPS ${this.fps.toFixed(1)}  (${this.frameMs.toFixed(1)} ms)   preset ${info.preset}`,
       `GPU ${info.gpu}`,
       `fuente ${info.source} · ${info.camera}`,
-      `pose ${info.pose.model ?? '—'}/${info.pose.delegate}  ${info.pose.rate.toFixed(1)} Hz  infer ${info.pose.inferMs.toFixed(1)} ms`,
+      `pose ${info.pose.model ?? '—'}/${info.pose.delegate}  ${info.pose.rate.toFixed(1)} Hz  infer ${info.pose.inferMs.toFixed(1)} ms  sombras γ${info.pose.gamma.toFixed(2)}`,
       `render ${r.render.calls} draws · ${(r.render.triangles / 1000).toFixed(0)}k tris · geo ${r.memory.geometries} · tex ${r.memory.textures}`,
       `anatomía ${info.assets} · audio ${info.audio}`,
       `borrado ${info.erase ?? '—'}`,
