@@ -108,32 +108,71 @@ function worldAt(s: Show, n: Vector2, depth: Vector3, out: Vector3): Vector3 {
   return out.multiplyScalar(dz / Math.max(1e-3, out.dot(fwd))).add(o);
 }
 
-/** Landmarks de la palma por lado (MediaPipe: muñeca, índice, meñique). */
-const PALM = { Left: [LM.L_WRIST, LM.L_INDEX, LM.L_PINKY], Right: [LM.R_WRIST, LM.R_INDEX, LM.R_PINKY] } as const;
+/** Landmarks de la mano por lado (MediaPipe: muñeca; índice y meñique marcan hacia dónde van los dedos). */
+const HAND_LM = {
+  Left: { wrist: LM.L_WRIST, a: LM.L_INDEX, b: LM.L_PINKY },
+  Right: { wrist: LM.R_WRIST, a: LM.R_INDEX, b: LM.R_PINKY },
+} as const;
+const segA = new Vector2();
+const segB = new Vector2();
+const onSeg = new Vector2();
+const v2 = new Vector2();
+const cand = new Vector2();
 
-/** Centro de la palma visto por la cámara (landmarks 2D filtrados) en NDC con aspecto. Es donde está la mano
- *  de verdad en la pared: el hueso del esqueleto 3D tiene el largo de brazo del modelo, no el del visitante,
- *  y con el brazo estirado hacia adelante se corre. Falso si la mano no se ve bien. */
-function palmNdc(s: Show, lm: Float32Array, side: 'Left' | 'Right', out: Vector2): boolean {
-  let u = 0, v = 0, w = 0;
-  for (const i of PALM[side]) {
-    const o = i * LM_STRIDE;
-    const vis = lm[o + 3];
-    if (vis < 0.25) continue;
-    u += lm[o] * vis;
-    v += lm[o + 1] * vis;
-    w += vis;
-  }
-  if (w < 0.5) return false;
+/** Landmark 2D (u,v de video) → NDC con aspecto, en el espacio de render (sin espejo). */
+function lmNdc(s: Show, lm: Float32Array, i: number, out: Vector2): number {
+  const o = i * LM_STRIDE;
   const P = s.stage.projection;
-  // A píxel de la pared (con espejo) → espacio de render (sin espejo: el CSS espeja el canvas) → NDC.
-  let [x, y] = P.videoToScreen(u / w, v / w);
+  let [x, y] = P.videoToScreen(lm[o], lm[o + 1]);
+  // A píxel de la pared (con espejo) → espacio de render (el CSS espeja el canvas).
   if (config.mirror) x = P.canvasW - x;
   const aspect = window.innerWidth / Math.max(1, window.innerHeight);
-  return !!out.set(((x / P.canvasW) * 2 - 1) * aspect, 1 - (y / P.canvasH) * 2);
+  out.set(((x / P.canvasW) * 2 - 1) * aspect, 1 - (y / P.canvasH) * 2);
+  return lm[o + 3];
 }
 
-/** Mano del receptor en NDC (la más cercana al corazón, o la que lo tiene). */
+/** Punto del segmento a→b más cercano a `p`. */
+function closestOnSegment(a: Vector2, b: Vector2, p: Vector2, out: Vector2): Vector2 {
+  v2.subVectors(b, a);
+  const l2 = v2.lengthSq();
+  const t = l2 > 1e-9 ? Math.min(1, Math.max(0, v2.dot(onSeg.subVectors(p, a)) / l2)) : 0;
+  return out.copy(a).addScaledVector(v2, t);
+}
+
+/** Mano vista por la cámara como SEGMENTO: de la muñeca hasta la punta de los dedos (los landmarks de
+ *  índice y meñique están a media mano; la punta se extrapola). Falso si la mano no se ve. */
+function handSegmentLm(s: Show, lm: Float32Array, side: 'Left' | 'Right', a: Vector2, b: Vector2): boolean {
+  const H = HAND_LM[side];
+  const vw = lmNdc(s, lm, H.wrist, a);
+  const vi = lmNdc(s, lm, H.a, b);
+  const vp = lmNdc(s, lm, H.b, onSeg);
+  if (vi < 0.2 && vp < 0.2) return false;
+  // Mitad de los dedos (índice y meñique, ponderados por visibilidad).
+  const wsum = Math.max(1e-3, (vi >= 0.2 ? vi : 0) + (vp >= 0.2 ? vp : 0));
+  b.multiplyScalar((vi >= 0.2 ? vi : 0) / wsum).addScaledVector(onSeg, (vp >= 0.2 ? vp : 0) / wsum);
+  if (vw < 0.2) {
+    a.copy(b);
+    return true;
+  }
+  // Punta de los dedos: un poco más allá de los nudillos.
+  b.sub(a).multiplyScalar(1.7).add(a);
+  return true;
+}
+
+/** Mano del esqueleto dibujado como segmento (muñeca → punta): lo que el visitante ve en la pared. */
+function handSegmentBone(s: Show, r: BodyRig, side: 'Left' | 'Right', a: Vector2, b: Vector2): void {
+  const w = r.armature.bones[`${side}Hand`];
+  const e = r.armature.bones[`${side}Hand_End`];
+  w.updateWorldMatrix(true, false);
+  ndc(s, tmp.setFromMatrixPosition(w.matrixWorld), a);
+  if (e) {
+    e.updateWorldMatrix(true, false);
+    ndc(s, tmp.setFromMatrixPosition(e.matrixWorld), b);
+  } else b.copy(a);
+}
+
+/** Mano del receptor en NDC: el punto de la mano (de la cámara o del esqueleto dibujado, toda la mano de
+ *  la muñeca a los dedos) más cercano al corazón. Así "tocar" es superponer la mano, no acertar un punto. */
 function receptorHand(s: Show, r: BodyRig, out: Vector2): boolean {
   if (config.extraction.debugMouse && mouseOn) {
     out.copy(mouse);
@@ -143,20 +182,21 @@ function receptorHand(s: Show, r: BodyRig, out: Vector2): boolean {
   const person = s.person(r.personId);
   if (r.virtual || !person) return false;
   let best = Infinity;
-  for (const side of ['Left', 'Right'] as const) {
-    if (hand && side !== hand) continue;
-    // La mano real (landmarks 2D); si no se ve bien, el hueso de la mano del esqueleto.
-    if (!palmNdc(s, person.lm2d, side, nHand)) {
-      const b = r.armature.bones[`${side}Hand`];
-      b.updateWorldMatrix(true, false);
-      ndc(s, tmp.setFromMatrixPosition(b.matrixWorld), nHand);
-    }
-    const dd = nHand.distanceTo(nHeart);
+  // `cand` es un borrador propio: `out` suele ser nHand y no se puede pisar con candidatos peores.
+  const consider = (side: 'Left' | 'Right') => {
+    closestOnSegment(segA, segB, nHeart, cand);
+    const dd = cand.distanceTo(nHeart);
     if (dd < best) {
       best = dd;
-      out.copy(nHand);
+      out.copy(cand);
       closest = side;
     }
+  };
+  for (const side of ['Left', 'Right'] as const) {
+    if (hand && side !== hand) continue;
+    if (handSegmentLm(s, person.lm2d, side, segA, segB)) consider(side);
+    handSegmentBone(s, r, side, segA, segB);
+    consider(side);
   }
   return best < Infinity;
 }
@@ -281,7 +321,7 @@ export const extraccionManos: State = {
       const hasHand = receptorHand(s, r, nHand);
       heartPos.setFromMatrixPosition(hp.matrixWorld);
       if (phase === 'esperar') {
-        ringGrab?.show(heartPos, dwell / Math.max(1e-3, X.grabDwell));
+        ringGrab?.show(heartPos, dwell / Math.max(1e-3, X.grabDwell), X.grabRadius);
         ringPut?.hide();
         if (hasHand && nHand.distanceTo(nHeart) < X.grabRadius) {
           dwell += dt;
@@ -354,7 +394,7 @@ export const extraccionManos: State = {
         // Metérselo: el corazón sobre el propio pecho hasta que se llena el anillo (o el envío automático llega).
         let inside = false;
         if (phase === 'tomado') {
-          ringPut?.show(recHeart, putDwell / Math.max(1e-3, X.deliverDwell));
+          ringPut?.show(recHeart, putDwell / Math.max(1e-3, X.deliverDwell), X.deliverRadius);
           if (nHeart.distanceTo(nRec) < X.deliverRadius && prog > 0.4) putDwell += dt;
           else putDwell = Math.max(0, putDwell - dt * 0.5);
           inside = putDwell >= X.deliverDwell;

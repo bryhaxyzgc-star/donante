@@ -13,6 +13,7 @@ export class HintRing {
   private target = 0;
   private progress = 0;
   private readonly at = new Vector3();
+  private radius = 0.12;
 
   constructor() {
     this.el.className = 'hint-ring';
@@ -21,9 +22,11 @@ export class HintRing {
     document.body.appendChild(this.el);
   }
 
-  /** Muestra el anillo en `world` con el progreso 0..1 del gesto. */
-  show(world: Vector3, progress: number): void {
+  /** Muestra el anillo en `world` con el progreso 0..1 del gesto. `radius` (NDC, alto de pantalla = 2): el
+   *  anillo dibuja exactamente la zona donde la mano cuenta. */
+  show(world: Vector3, progress: number, radius?: number): void {
     this.at.copy(world);
+    if (radius !== undefined) this.radius = radius;
     this.progress = Math.max(0, Math.min(1, progress));
     this.target = 1;
   }
@@ -44,5 +47,10 @@ export class HintRing {
     const pulse = 1 + 0.06 * Math.sin(performance.now() * 0.006) * (1 - this.progress);
     this.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) translate(-50%, -50%) scale(${pulse.toFixed(3)})`;
     this.fill.style.setProperty('--p', this.progress.toFixed(3));
+    const d = `${(this.radius * window.innerHeight).toFixed(1)}px`;
+    if (this.el.style.width !== d) {
+      this.el.style.width = d;
+      this.el.style.height = d;
+    }
   }
 }

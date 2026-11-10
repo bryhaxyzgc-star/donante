@@ -158,13 +158,13 @@ export const config = {
    *  la cinemática X-Ray de planos. Radios en NDC (alto de pantalla = 2), tiempos en s. */
   extraction: {
     mode: 'manos',
-    /** Qué tan cerca del corazón tiene que estar la mano y cuánto mantenerla ahí para tomarlo (el
-     *  anillo se llena). */
-    grabRadius: 0.15,
-    grabDwell: 0.6,
+    /** Qué tan cerca del corazón tiene que estar la mano (cualquier parte, de la muñeca a los dedos) y
+     *  cuánto mantenerla para tomarlo: casi nada, se toma apenas la mano lo toca. El anillo marca la zona. */
+    grabRadius: 0.2,
+    grabDwell: 0.1,
     /** Para metérselo: qué tan cerca del propio pecho y cuánto mantenerlo ahí (otro anillo). */
-    deliverRadius: 0.15,
-    deliverDwell: 0.6,
+    deliverRadius: 0.2,
+    deliverDwell: 0.3,
     /** Suavizado del corazón detrás de la mano (1/s). */
     follow: 10,
     /** Distancia (m, escala del cuerpo) a la que se rompe cada vaso: pulmonar, cava superior, cava inferior, aorta. */
